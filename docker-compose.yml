@@ -1,0 +1,58 @@
+version: "3.3"
+services:
+
+  elasticsearch:
+    image: 'docker.elastic.co/elasticsearch/elasticsearch:6.5.1'
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - elasticsearch-vol:/usr/share/elasticsearch/data 
+    networks:
+      - logging-net
+    environment:
+      - xpack.security.enabled=false 
+
+  fluentd:
+    image: melvindave/fluentd-elastic:1.0
+    ports:
+      - "24224:24224"
+    networks:
+      - logging-net
+    depends_on:  
+      - "elasticsearch"
+    volumes:
+      - ./fluentd/etc:/fluentd/etc      
+
+  kibana:
+    image: 'docker.elastic.co/kibana/kibana:6.5.1'
+    ports:
+      - "5601:5601"
+    networks:
+      - logging-net
+    depends_on:
+      - elasticsearch    
+  
+  nginx:
+    image: nginx
+    ports:
+      - "80:80"
+    networks:
+      - logging-net
+    deploy:
+      replicas: 1  
+    volumes:
+      - ${NGINX_HTML_DIR}:/usr/share/nginx/html
+    logging:
+      driver: fluentd  
+      options:
+        fluentd-address: localhost:24224
+        tag: httpd.access
+    depends_on:  
+      - "fluentd" 
+
+networks:
+  logging-net:
+
+volumes:
+  elasticsearch-vol: 
